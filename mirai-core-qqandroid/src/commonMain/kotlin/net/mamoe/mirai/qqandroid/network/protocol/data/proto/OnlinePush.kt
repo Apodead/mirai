@@ -1,53 +1,45 @@
-/*
- * Copyright 2020 Mamoe Technologies and contributors.
- *
- * 此源代码的使用受 GNU AFFERO GENERAL PUBLIC LICENSE version 3 许可证的约束, 可以在以下链接找到该许可证.
- * Use of this source code is governed by the GNU AGPLv3 license that can be found through the following link.
- *
- * https://github.com/mamoe/mirai/blob/master/LICENSE
- */
-
 package net.mamoe.mirai.qqandroid.network.protocol.data.proto
 
-import kotlinx.serialization.SerialId
 import kotlinx.serialization.Serializable
-import net.mamoe.mirai.qqandroid.io.ProtoBuf
+import kotlinx.serialization.protobuf.ProtoNumber
 import net.mamoe.mirai.qqandroid.network.protocol.packet.EMPTY_BYTE_ARRAY
+import net.mamoe.mirai.qqandroid.utils.io.ProtoBuf
+import kotlin.jvm.JvmField
 
 @Serializable
 internal class MsgOnlinePush {
     @Serializable
     internal class PbPushMsg(
-        @SerialId(1) val msg: MsgComm.Msg,
-        @SerialId(2) val svrip: Int = 0,
-        @SerialId(3) val pushToken: ByteArray = EMPTY_BYTE_ARRAY,
-        @SerialId(4) val pingFlag: Int = 0,
-        @SerialId(9) val generalFlag: Int = 0
+        @ProtoNumber(1) @JvmField val msg: MsgComm.Msg,
+        @ProtoNumber(2) @JvmField val svrip: Int = 0,
+        @ProtoNumber(3) @JvmField val pushToken: ByteArray = EMPTY_BYTE_ARRAY,
+        @ProtoNumber(4) @JvmField val pingFlag: Int = 0,
+        @ProtoNumber(9) @JvmField val generalFlag: Int = 0
     ) : ProtoBuf
 }
 
 @Serializable
-class OnlinePushTrans : ProtoBuf {
+internal class OnlinePushTrans : ProtoBuf {
     @Serializable
-    class ExtGroupKeyInfo(
-        @SerialId(1) val curMaxSeq: Int = 0,
-        @SerialId(2) val curTime: Long = 0L
+    internal class ExtGroupKeyInfo(
+        @ProtoNumber(1) @JvmField val curMaxSeq: Int = 0,
+        @ProtoNumber(2) @JvmField val curTime: Long = 0L
     ) : ProtoBuf
 
     @Serializable
-    class PbMsgInfo(
-        @SerialId(1) val fromUin: Long = 0L,
-        @SerialId(2) val toUin: Long = 0L,
-        @SerialId(3) val msgType: Int = 0,
-        @SerialId(4) val msgSubtype: Int = 0,
-        @SerialId(5) val msgSeq: Int = 0,
-        @SerialId(6) val msgUid: Long = 0L,
-        @SerialId(7) val msgTime: Int = 0,
-        @SerialId(8) val realMsgTime: Int = 0,
-        @SerialId(9) val nickName: String = "",
-        @SerialId(10) val msgData: ByteArray = EMPTY_BYTE_ARRAY,
-        @SerialId(11) val svrIp: Int = 0,
-        @SerialId(12) val extGroupKeyInfo: OnlinePushTrans.ExtGroupKeyInfo? = null,
-        @SerialId(17) val generalFlag: Int = 0
+    internal class PbMsgInfo(
+        @ProtoNumber(1) @JvmField val fromUin: Long = 0L,
+        @ProtoNumber(2) @JvmField val toUin: Long = 0L,
+        @ProtoNumber(3) @JvmField val msgType: Int = 0,
+        @ProtoNumber(4) @JvmField val msgSubtype: Int = 0,
+        @ProtoNumber(5) @JvmField val msgSeq: Int = 0,
+        @ProtoNumber(6) @JvmField val msgUid: Long = 0L,
+        @ProtoNumber(7) @JvmField val msgTime: Int = 0,
+        @ProtoNumber(8) @JvmField val realMsgTime: Int = 0,
+        @ProtoNumber(9) @JvmField val nickName: String = "",
+        @ProtoNumber(10) @JvmField val msgData: ByteArray = EMPTY_BYTE_ARRAY,
+        @ProtoNumber(11) @JvmField val svrIp: Int = 0,
+        @ProtoNumber(12) @JvmField val extGroupKeyInfo: ExtGroupKeyInfo? = null,
+        @ProtoNumber(17) @JvmField val generalFlag: Int = 0
     ) : ProtoBuf
 }

@@ -1,8 +1,8 @@
 /*
- * Copyright 2020 Mamoe Technologies and contributors.
+ * Copyright 2019-2020 Mamoe Technologies and contributors.
  *
  * 此源代码的使用受 GNU AFFERO GENERAL PUBLIC LICENSE version 3 许可证的约束, 可以在以下链接找到该许可证.
- * Use of this source code is governed by the GNU AGPLv3 license that can be found through the following link.
+ * Use of this source code is governed by the GNU AFFERO GENERAL PUBLIC LICENSE version 3 license that can be found via the following link.
  *
  * https://github.com/mamoe/mirai/blob/master/LICENSE
  */
@@ -13,38 +13,38 @@ import kotlinx.io.core.ByteReadPacket
 import kotlinx.io.core.buildPacket
 import kotlinx.io.core.readBytes
 import kotlinx.io.core.toByteArray
-import kotlinx.serialization.toUtf8Bytes
-import net.mamoe.mirai.contact.Group
+import net.mamoe.mirai.LowLevelAPI
 import net.mamoe.mirai.contact.Member
-import net.mamoe.mirai.data.Packet
 import net.mamoe.mirai.qqandroid.QQAndroidBot
-import net.mamoe.mirai.qqandroid.io.serialization.*
+import net.mamoe.mirai.qqandroid.network.Packet
 import net.mamoe.mirai.qqandroid.network.QQAndroidClient
 import net.mamoe.mirai.qqandroid.network.protocol.data.jce.ModifyGroupCardReq
 import net.mamoe.mirai.qqandroid.network.protocol.data.jce.RequestPacket
+import net.mamoe.mirai.qqandroid.network.protocol.data.jce.StTroopNum
 import net.mamoe.mirai.qqandroid.network.protocol.data.jce.stUinInfo
 import net.mamoe.mirai.qqandroid.network.protocol.data.proto.*
 import net.mamoe.mirai.qqandroid.network.protocol.packet.OutgoingPacket
 import net.mamoe.mirai.qqandroid.network.protocol.packet.OutgoingPacketFactory
 import net.mamoe.mirai.qqandroid.network.protocol.packet.buildOutgoingUniPacket
+import net.mamoe.mirai.qqandroid.utils.io.serialization.*
 import net.mamoe.mirai.utils.daysToSeconds
-import net.mamoe.mirai.utils.io.encodeToString
 import net.mamoe.mirai.data.GroupInfo as MiraiGroupInfo
 
-internal inline class GroupInfoImpl(
-    internal val delegate: Oidb0x88d.GroupInfo
-) : MiraiGroupInfo, Packet {
-    override val uin: Long get() = delegate.groupUin ?: error("cannot find groupUin")
-    override val owner: Long get() = delegate.groupOwner ?: error("cannot find groupOwner")
-    override val groupCode: Long get() = Group.calculateGroupCodeByGroupUin(uin)
-    override val memo: String get() = delegate.groupMemo ?: error("cannot find groupMemo")
-    override val name: String get() = delegate.groupName ?: delegate.longGroupName ?: error("cannot find groupName")
-    override val allowMemberInvite get() = delegate.groupFlagExt?.and(0x000000c0) != 0
-    override val allowAnonymousChat get() = delegate.groupFlagExt?.and(0x40000000) == 0
-    override val autoApprove get() = delegate.groupFlagext3?.and(0x00100000) == 0
-    override val confessTalk get() = delegate.groupFlagext3?.and(0x00002000) == 0
-    override val muteAll: Boolean get() = delegate.shutupTimestamp != 0
-    override val botMuteRemaining: Int get() = delegate.shutupTimestampMe ?: 0
+@OptIn(LowLevelAPI::class)
+internal class GroupInfoImpl(
+    private val stTroopNum: StTroopNum
+) : MiraiGroupInfo, Packet, Packet.NoLog {
+    override val uin: Long get() = stTroopNum.groupUin
+    override val owner: Long get() = stTroopNum.dwGroupOwnerUin
+    override val groupCode: Long get() = stTroopNum.groupCode
+    override val memo: String get() = stTroopNum.groupMemo
+    override val name: String get() = stTroopNum.groupName
+    override val allowMemberInvite get() = stTroopNum.dwGroupFlagExt?.and(0x000000c0) != 0L
+    override val allowAnonymousChat get() = stTroopNum.dwGroupFlagExt?.and(0x40000000) == 0L
+    override val autoApprove get() = stTroopNum.dwGroupFlagExt3?.and(0x00100000) == 0L
+    override val confessTalk get() = stTroopNum.dwGroupFlagExt3?.and(0x00002000) == 0L
+    override val muteAll: Boolean get() = stTroopNum.dwShutUpTimestamp != 0L
+    override val botMuteTimestamp: Int get() = stTroopNum.dwMyShutUpTimestamp?.toInt() ?: 0
 }
 
 internal class TroopManagement {
@@ -88,6 +88,7 @@ internal class TroopManagement {
 
 
     internal object GetGroupInfo : OutgoingPacketFactory<GroupInfoImpl>("OidbSvc.0x88d_7") {
+        @Deprecated("")
         operator fun invoke(
             client: QQAndroidClient,
             groupCode: Long
@@ -100,15 +101,15 @@ internal class TroopManagement {
                         serviceType = 7,
                         result = 0,
                         bodybuffer = Oidb0x88d.ReqBody(
-                            appid = 537062845,
+                            appid = client.subAppId.toInt(),
                             stzreqgroupinfo = listOf(
                                 Oidb0x88d.ReqGroupInfo(
                                     stgroupinfo = Oidb0x88d.GroupInfo(
                                         groupFlagExt = 0,
                                         groupFlagext4 = 0,
                                         groupFlag = 0,
-                                        groupFlagext3 = 0,//获取confess
-                                        noFingerOpenFlag = 0,
+                                        groupFlagext3 = 1,//获取confess
+                                        noFingerOpenFlag = 1,
                                         cmduinFlagEx2 = 0,
                                         groupTypeFlag = 0,
                                         appPrivilegeFlag = 0,
@@ -135,51 +136,59 @@ internal class TroopManagement {
         }
 
         override suspend fun ByteReadPacket.decode(bot: QQAndroidBot): GroupInfoImpl {
-            with(this.readBytes().loadAs(OidbSso.OIDBSSOPkg.serializer()).bodybuffer.loadAs(Oidb0x88d.RspBody.serializer()).stzrspgroupinfo!![0].stgroupinfo!!) {
-                return GroupInfoImpl(this)
-            }
+            error("deprecated")
+            /*
+            with(
+                this.readBytes()
+                    .loadAs(OidbSso.OIDBSSOPkg.serializer()).bodybuffer.loadAs(Oidb0x88d.RspBody.serializer()).stzrspgroupinfo!![0].stgroupinfo!!
+            ) {
+                return GroupInfoImpl()
+            }*/
         }
     }
 
     internal object Kick : OutgoingPacketFactory<Kick.Response>("OidbSvc.0x8a0_0") {
         override suspend fun ByteReadPacket.decode(bot: QQAndroidBot): Response {
-            return Response(this.readBytes().loadAs(OidbSso.OIDBSSOPkg.serializer()).bodybuffer.loadAs(Oidb0x8a0.RspBody.serializer()).msgKickResult!![0].optUint32Result == 1)
+            val ret = this.readBytes()
+                .loadAs(OidbSso.OIDBSSOPkg.serializer()).bodybuffer.loadAs(Oidb0x8a0.RspBody.serializer()).msgKickResult!![0].optUint32Result
+            return Response(
+                ret == 0,
+                ret
+            )
         }
 
         class Response(
-            val success: Boolean
+            val success: Boolean,
+            val ret: Int
         ) : Packet {
-            override fun toString(): String = "Response(Kick Member)"
+            override fun toString(): String = "TroopManagement.Kick.Response($success)"
         }
 
         operator fun invoke(
             client: QQAndroidClient,
             member: Member,
             message: String
-        ): OutgoingPacket {
-            return buildOutgoingUniPacket(client) {
-                writeProtoBuf(
-                    OidbSso.OIDBSSOPkg.serializer(),
-                    OidbSso.OIDBSSOPkg(
-                        command = 2208,
-                        serviceType = 0,//或者1
-                        result = 0,
-                        bodybuffer = Oidb0x8a0.ReqBody(
-                            optUint64GroupCode = member.group.id,
-                            msgKickList = listOf(
-                                Oidb0x8a0.KickMemberInfo(
-                                    optUint32Operate = 5,
-                                    optUint64MemberUin = member.id,
-                                    optUint32Flag = 1//或者0
-                                )
-                            ),
-                            kickMsg = message.toByteArray()
-                        ).toByteArray(Oidb0x8a0.ReqBody.serializer())
-                    )
+        ): OutgoingPacket = buildOutgoingUniPacket(client) {
+            writeProtoBuf(
+                OidbSso.OIDBSSOPkg.serializer(),
+                OidbSso.OIDBSSOPkg(
+                    command = 2208,
+                    serviceType = 0,//或者1
+                    result = 0,
+                    bodybuffer = Oidb0x8a0.ReqBody(
+                        optUint64GroupCode = member.group.id,
+                        msgKickList = listOf(
+                            Oidb0x8a0.KickMemberInfo(
+                                optUint32Operate = 5,
+                                optUint64MemberUin = member.id,
+                                optUint32Flag = 1//或者0
+                            )
+                        ),
+                        kickMsg = message.toByteArray()
+                    ).toByteArray(Oidb0x8a0.ReqBody.serializer())
                 )
-            }
+            )
         }
-
 
     }
 
@@ -377,9 +386,14 @@ internal class TroopManagement {
 
     internal object EditGroupNametag :
         OutgoingPacketFactory<EditGroupNametag.Response>("friendlist.ModifyGroupCardReq") {
-        object Response : Packet
+        object Response : Packet {
+            override fun toString(): String {
+                return "TroopManagement.EditGroupNametag.Response"
+            }
+        }
 
         override suspend fun ByteReadPacket.decode(bot: QQAndroidBot): EditGroupNametag.Response {
+            this.close()
             return Response
         }
 
@@ -396,7 +410,6 @@ internal class TroopManagement {
                         sServantName = "mqq.IMService.FriendListServiceServantObj",
                         iVersion = 3,
                         cPacketType = 0x00,
-                        iMessageType = 0x00000,
                         iRequestId = client.nextRequestPacketRequestId(),
                         sBuffer = jceRequestSBuffer(
                             "MGCREQ",
@@ -410,14 +423,13 @@ internal class TroopManagement {
                                         gender = 0,
                                         dwuin = member.id,
                                         dwFlag = 31,
-                                        sName = newName.toByteArray(CharsetUTF8).encodeToString(CharsetGBK),
+                                        sName = newName,
                                         sPhone = "",
                                         sEmail = "",
                                         sRemark = ""
                                     )
                                 )
-                            ),
-                            JceCharset.GBK
+                            )
                         )
                     )
                 )

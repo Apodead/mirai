@@ -1,8 +1,8 @@
 /*
- * Copyright 2020 Mamoe Technologies and contributors.
+ * Copyright 2019-2020 Mamoe Technologies and contributors.
  *
  * 此源代码的使用受 GNU AFFERO GENERAL PUBLIC LICENSE version 3 许可证的约束, 可以在以下链接找到该许可证.
- * Use of this source code is governed by the GNU AGPLv3 license that can be found through the following link.
+ * Use of this source code is governed by the GNU AFFERO GENERAL PUBLIC LICENSE version 3 license that can be found via the following link.
  *
  * https://github.com/mamoe/mirai/blob/master/LICENSE
  */
@@ -14,38 +14,78 @@
 
 package net.mamoe.mirai.message.data
 
+import net.mamoe.mirai.LowLevelAPI
 import net.mamoe.mirai.contact.Member
 import net.mamoe.mirai.contact.nameCardOrNick
-import net.mamoe.mirai.utils.MiraiInternalAPI
+import net.mamoe.mirai.message.code.CodableMessage
 import kotlin.jvm.JvmMultifileClass
 import kotlin.jvm.JvmName
+import kotlin.jvm.JvmStatic
+import kotlin.jvm.JvmSynthetic
 
 
 /**
- * At 一个人. 只能发送给一个群.
+ * At 一个群成员. 只能发送给一个群.
+ *
+ * ## mirai 码支持
+ * 格式: &#91;mirai:at:*[target]*,*[display]*&#93;
  *
  * @see AtAll 全体成员
  */
-class At @MiraiInternalAPI constructor(val target: Long, val display: String) : Message {
-    @UseExperimental(MiraiInternalAPI::class)
-    constructor(member: Member) : this(member.id, "@${member.nameCardOrNick}")
+public data class At
+@Suppress("DataClassPrivateConstructor")
+private constructor(
+    public val target: Long,
+    /**
+     * "@群员名片"
+     */
+    public val display: String
+) : MessageContent, CodableMessage {
 
-    override fun toString(): String = display
+    /**
+     * 构造一个 [At] 实例. 这是唯一的公开的构造方式.
+     */
+    public constructor(member: Member) : this(member.id, "@${member.nameCardOrNick}")
 
-    companion object Key : Message.Key<At>
+    public override fun equals(other: Any?): Boolean {
+        return other is At && other.target == this.target && other.display == this.display
+    }
+
+    public override fun toString(): String = "[mirai:at:$target,$display]"
+    public override fun contentToString(): String = this.display
+
+    public companion object Key : Message.Key<At> {
+        public override val typeName: String
+            get() = "At"
+
+        /**
+         * 构造一个 [At], 仅供内部使用, 否则可能造成消息无法发出的问题.
+         */
+        @Suppress("FunctionName")
+        @JvmStatic
+        @LowLevelAPI
+        public fun _lowLevelConstructAtInstance(target: Long, display: String): At = At(target, display)
+    }
 
     // 自动为消息补充 " "
-
-    override fun followedBy(tail: Message): MessageChain {
-        if(tail is PlainText && tail.stringValue.startsWith(' ')){
-            return super.followedBy(tail)
+    public override fun followedBy(tail: Message): MessageChain {
+        if (tail is PlainText && tail.content.startsWith(' ')) {
+            return super<MessageContent>.followedBy(tail)
         }
-        return super.followedBy(PlainText(" ")) + tail
+        return super<MessageContent>.followedBy(PlainText(" ")) + tail
     }
+
+    public override fun hashCode(): Int {
+        var result = target.hashCode()
+        result = 31 * result + display.hashCode()
+        return result
+    }
+
 }
 
 /**
  * At 这个成员
  */
+@JvmSynthetic
 @Suppress("NOTHING_TO_INLINE")
-inline fun Member.at(): At = At(this)
+public inline fun Member.at(): At = At(this)

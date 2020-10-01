@@ -3,29 +3,13 @@
 plugins {
     kotlin("multiplatform")
     id("kotlinx-atomicfu")
-    id("kotlinx-serialization")
+    kotlin("plugin.serialization")
+    id("net.mamoe.kotlin-jvm-blocking-bridge")
     `maven-publish`
-    id("com.jfrog.bintray") version "1.8.4-jetbrains-3"
+    id("com.jfrog.bintray") version Versions.Publishing.bintray
 }
 
-val kotlinVersion: String by rootProject.ext
-val atomicFuVersion: String by rootProject.ext
-val coroutinesVersion: String by rootProject.ext
-val kotlinXIoVersion: String by rootProject.ext
-val coroutinesIoVersion: String by rootProject.ext
-
-val klockVersion: String by rootProject.ext
-val ktorVersion: String by rootProject.ext
-
-val serializationVersion: String by rootProject.ext
-
-fun kotlinx(id: String, version: String) = "org.jetbrains.kotlinx:kotlinx-$id:$version"
-
-fun ktor(id: String, version: String) = "io.ktor:ktor-$id:$version"
-
-
-description = "QQ protocol library"
-version = rootProject.ext.get("mirai_version")!!.toString()
+description = "Mirai Protocol implementation for QQ Android"
 
 val isAndroidSDKAvailable: Boolean by project
 
@@ -53,32 +37,42 @@ kotlin {
     jvm("jvm") {
     }
 
-    sourceSets {
+    sourceSets.apply {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
-
             languageSettings.useExperimentalAnnotation("kotlin.Experimental")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.utils.MiraiInternalAPI")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.utils.MiraiExperimentalAPI")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.LowLevelAPI")
+            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
+            languageSettings.useExperimentalAnnotation("kotlin.experimental.ExperimentalTypeInference")
+            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
+            languageSettings.useExperimentalAnnotation("kotlin.contracts.ExperimentalContracts")
+            languageSettings.useExperimentalAnnotation("kotlinx.serialization.ExperimentalSerializationApi")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.utils.UnstableExternalImage")
+
+            languageSettings.progressiveMode = true
 
             dependencies {
                 api(project(":mirai-core"))
-
-                api(kotlin("stdlib", kotlinVersion))
-
-                api("org.jetbrains.kotlinx:atomicfu:$atomicFuVersion")
-                api(kotlinx("io", kotlinXIoVersion))
-                api(kotlinx("coroutines-io", coroutinesIoVersion))
-                api(kotlinx("coroutines-core", coroutinesVersion))
             }
         }
-        commonMain {
+
+        val commonMain by getting {
             dependencies {
-                api(kotlinx("serialization-runtime-common", serializationVersion))
+                api1(kotlinx("serialization-core", Versions.Kotlin.serialization))
+                api(kotlinx("coroutines-core", Versions.Kotlin.coroutines))
+                implementation1(kotlinx("serialization-protobuf", Versions.Kotlin.serialization))
+                api1("org.jetbrains.kotlinx:atomicfu:${Versions.Kotlin.atomicFU}")
+                api1(kotlinx("io", Versions.Kotlin.io))
+                implementation1(kotlinx("coroutines-io", Versions.Kotlin.coroutinesIo))
             }
         }
-        commonTest {
+
+        val commonTest by getting {
             dependencies {
-                api(kotlin("test-annotations-common"))
-                api(kotlin("test-common"))
+                implementation(kotlin("test-annotations-common"))
+                implementation(kotlin("test-common"))
                 implementation(kotlin("script-runtime"))
             }
         }
@@ -91,8 +85,8 @@ kotlin {
 
             val androidTest by getting {
                 dependencies {
-                    implementation(kotlin("test", kotlinVersion))
-                    implementation(kotlin("test-junit", kotlinVersion))
+                    implementation(kotlin("test", Versions.Kotlin.compiler))
+                    implementation(kotlin("test-junit", Versions.Kotlin.compiler))
                     implementation(kotlin("test-annotations-common"))
                     implementation(kotlin("test-common"))
                 }
@@ -101,26 +95,56 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                runtimeOnly(files("build/classes/kotlin/jvm/main")) // classpath is not properly set by IDE
-                api(kotlinx("serialization-runtime", serializationVersion))
+                implementation("org.bouncycastle:bcprov-jdk15on:1.64")
+                api1(kotlinx("io-jvm", Versions.Kotlin.io))
+                //    api(kotlinx("coroutines-debug", Versions.Kotlin.coroutines))
             }
         }
 
         val jvmTest by getting {
             dependencies {
-                api(kotlin("test", kotlinVersion))
-                api(kotlin("test-junit", kotlinVersion))
+                dependsOn(commonTest)
+                implementation(kotlin("test", Versions.Kotlin.compiler))
+                implementation(kotlin("test-junit", Versions.Kotlin.compiler))
                 implementation("org.pcap4j:pcap4j-distribution:1.8.2")
-
-                runtimeOnly(files("build/classes/kotlin/jvm/main")) // classpath is not properly set by IDE
-                runtimeOnly(files("build/classes/kotlin/jvm/test")) // classpath is not properly set by IDE
             }
         }
     }
 }
-//
-//tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-//    kotlinOptions.jvmTarget = "1.8"
-//}
+
+fun org.jetbrains.kotlin.gradle.plugin.KotlinDependencyHandler.implementation1(dependencyNotation: String) =
+    implementation(dependencyNotation) {
+        exclude("org.jetbrains.kotlin", "kotlin-stdlib")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core-common")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core-metadata")
+    }
+
+fun org.jetbrains.kotlin.gradle.plugin.KotlinDependencyHandler.api1(dependencyNotation: String) =
+    api(dependencyNotation) {
+        exclude("org.jetbrains.kotlin", "kotlin-stdlib")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core-common")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm")
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core-metadata")
+    }
 
 apply(from = rootProject.file("gradle/publish.gradle"))
+
+
+tasks.withType<com.jfrog.bintray.gradle.tasks.BintrayUploadTask> {
+    doFirst {
+        publishing.publications
+            .filterIsInstance<MavenPublication>()
+            .forEach { publication ->
+                val moduleFile = buildDir.resolve("publications/${publication.name}/module.json")
+                if (moduleFile.exists()) {
+                    publication.artifact(object :
+                        org.gradle.api.publish.maven.internal.artifact.FileBasedMavenArtifact(moduleFile) {
+                        override fun getDefaultExtension() = "module"
+                    })
+                }
+            }
+    }
+}
